@@ -4,11 +4,11 @@ import {
   Layout, List, Calendar, Plus, Filter, 
   ChevronDown, Search, MoreVertical, AlertCircle,
   CheckCircle2, Clock, PlayCircle, PauseCircle, XCircle,
-  Lock, Eye, EyeOff, LogOut
+  Lock, Eye, EyeOff, LogOut, GripVertical
 } from 'lucide-react'
 
-// Password protection - change this or use env variable
-const APP_PASSWORD = 'nerv2026'
+// Password from env variable (Vercel) or fallback for dev
+const APP_PASSWORD = import.meta.env.VITE_APP_PASSWORD || 'nerv2026'
 
 const STATUS_CONFIG = {
   backlog: { label: 'Backlog', color: '#6b7280', icon: PauseCircle },
@@ -26,6 +26,17 @@ const PRIORITY_CONFIG = {
   low: { label: 'Basse', color: '#6b7280' },
 }
 
+// Simple hash for password comparison (not for storage, just for env var)
+function simpleHash(str) {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash
+  }
+  return hash.toString(16)
+}
+
 // Login Screen
 function LoginScreen({ onLogin }) {
   const [password, setPassword] = useState('')
@@ -34,7 +45,8 @@ function LoginScreen({ onLogin }) {
   
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (password === APP_PASSWORD) {
+    // Accept plain password or hashed version
+    if (password === APP_PASSWORD || simpleHash(password) === APP_PASSWORD) {
       localStorage.setItem('mc_auth', 'true')
       onLogin(true)
     } else {
@@ -92,17 +104,29 @@ function LoginScreen({ onLogin }) {
   )
 }
 
-// Project Card Component
-function ProjectCard({ project, workspace, onMove }) {
+// Project Card with Drag & Drop
+function ProjectCard({ project, workspace, onMove, onDragStart, onDragEnd }) {
   const [showMenu, setShowMenu] = useState(false)
   const ws = workspace || { icon: '📁', color: '#6366f1' }
   const priority = PRIORITY_CONFIG[project.priority]
   const isBlocked = project.status === 'blocked'
   
+  const handleDragStart = (e) => {
+    e.dataTransfer.setData('projectId', project.id)
+    e.dataTransfer.effectAllowed = 'move'
+    onDragStart(project.id)
+  }
+  
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-2 hover:shadow-md transition-shadow ${isBlocked ? 'ring-2 ring-red-500/50' : ''}`}>
+    <div 
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={onDragEnd}
+      className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-2 hover:shadow-md transition-all cursor-grab active:cursor-grabbing ${isBlocked ? 'ring-2 ring-red-500/50' : ''}`}
+    >
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
+          <GripVertical size={14} className="text-gray-400 cursor-grab" />
           <span className="text-lg">{ws.icon}</span>
           <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">{project.name}</span>
         </div>
@@ -164,10 +188,38 @@ function ProjectCard({ project, workspace, onMove }) {
   )
 }
 
-// Kanban View
+// Drop Zone for Kanban
+function DropZone({ status, onDrop, children, isDragOver }) {
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+  
+  const handleDrop = (e) => {
+    e.preventDefault()
+    const projectId = e.dataTransfer.getData('projectId')
+    if (projectId) {
+      onDrop(projectId, status)
+    }
+  }
+  
+  return (
+    <div 
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      className={`min-h-[200px] transition-colors ${isDragOver ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}
+    >
+      {children}
+    </div>
+  )
+}
+
+// Kanban View with Drag & Drop
 function KanbanView() {
   const { projects, workspaces, moveProject } = useStore()
   const activeWorkspace = useStore(s => s.activeWorkspace)
+  const [draggedId, setDraggedId] = useState(null)
+  const [dragOverStatus, setDragOverStatus] = useState(null)
   
   const filteredProjects = activeWorkspace 
     ? projects.filter(p => p.workspace === activeWorkspace)
@@ -177,12 +229,32 @@ function KanbanView() {
   
   const getWorkspace = (id) => workspaces.find(w => w.id === id)
   
+  const handleDragStart = (id) => {
+    setDraggedId(id)
+  }
+  
+  const handleDragEnd = () => {
+    setDraggedId(null)
+    setDragOverStatus(null)
+  }
+  
+  const handleDragOver = (status) => {
+    setDragOverStatus(status)
+  }
+  
+  const handleDrop = (projectId, newStatus) => {
+    moveProject(projectId, newStatus)
+    setDraggedId(null)
+    setDragOverStatus(null)
+  }
+  
   return (
     <div className="flex gap-3 overflow-x-auto pb-4">
       {columns.map(status => {
         const config = STATUS_CONFIG[status]
         const columnProjects = filteredProjects.filter(p => p.status === status)
         const Icon = config.icon
+        const isOver = dragOverStatus === status && draggedId
         
         return (
           <div key={status} className="flex-shrink-0 w-64">
@@ -191,13 +263,20 @@ function KanbanView() {
               <span className="font-medium text-sm">{config.label}</span>
               <span className="text-xs text-gray-400 ml-auto">{columnProjects.length}</span>
             </div>
-            <div className="min-h-[200px]">
+            <div 
+              onDragOver={(e) => { e.preventDefault(); handleDragOver(status); }}
+              onDragLeave={() => setDragOverStatus(null)}
+              onDrop={(e) => handleDrop(e.dataTransfer.getData('projectId'), status)}
+              className={`min-h-[200px] transition-colors rounded-lg ${isOver ? 'bg-indigo-50 dark:bg-indigo-900/30 border-2 border-dashed border-indigo-400' : ''}`}
+            >
               {columnProjects.map(project => (
                 <ProjectCard 
                   key={project.id} 
                   project={project} 
                   workspace={getWorkspace(project.workspace)}
                   onMove={moveProject}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
                 />
               ))}
             </div>
@@ -440,7 +519,6 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(null)
   
   useEffect(() => {
-    // Check for existing session
     const auth = localStorage.getItem('mc_auth')
     setIsAuthenticated(auth === 'true')
   }, [])
@@ -454,7 +532,6 @@ function App() {
     setIsAuthenticated(false)
   }
   
-  // Show loading while checking auth
   if (isAuthenticated === null) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -463,12 +540,10 @@ function App() {
     )
   }
   
-  // Show login if not authenticated
   if (!isAuthenticated) {
     return <LoginScreen onLogin={handleLogin} />
   }
   
-  // Show main app
   const viewMode = useStore(s => s.viewMode)
   
   return (
