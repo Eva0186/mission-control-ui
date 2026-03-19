@@ -329,6 +329,7 @@ function Header({ onLogout, activeTab, setActiveTab }) {
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(null)
   const [activeTab, setActiveTab] = useState('projects')
+  const viewMode = useStore(s => s.viewMode)
   
   useEffect(() => {
     const auth = localStorage.getItem('mc_auth')
@@ -340,8 +341,6 @@ function App() {
   
   if (isAuthenticated === null) return <div className="min-h-screen bg-gray-900 flex items-center justify-center"><div className="text-white">Chargement...</div></div>
   if (!isAuthenticated) return <LoginScreen onLogin={handleLogin} />
-  
-  const viewMode = useStore(s => s.viewMode)
   
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
