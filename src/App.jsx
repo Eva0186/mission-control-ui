@@ -1,10 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useStore } from './store'
 import { 
   Layout, List, Calendar, Plus, Filter, 
   ChevronDown, Search, MoreVertical, AlertCircle,
-  CheckCircle2, Clock, PlayCircle, PauseCircle, XCircle
+  CheckCircle2, Clock, PlayCircle, PauseCircle, XCircle,
+  Lock, Eye, EyeOff, LogOut
 } from 'lucide-react'
+
+// Password protection - change this or use env variable
+const APP_PASSWORD = 'nerv2026'
 
 const STATUS_CONFIG = {
   backlog: { label: 'Backlog', color: '#6b7280', icon: PauseCircle },
@@ -20,6 +24,72 @@ const PRIORITY_CONFIG = {
   high: { label: 'Haute', color: '#f59e0b' },
   medium: { label: 'Moyenne', color: '#3b82f6' },
   low: { label: 'Basse', color: '#6b7280' },
+}
+
+// Login Screen
+function LoginScreen({ onLogin }) {
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState('')
+  
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (password === APP_PASSWORD) {
+      localStorage.setItem('mc_auth', 'true')
+      onLogin(true)
+    } else {
+      setError('Mot de passe incorrect')
+      setPassword('')
+    }
+  }
+  
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="text-5xl mb-4">🎯</div>
+          <h1 className="text-2xl font-bold text-white">Mission Control</h1>
+          <p className="text-gray-400 mt-2">Accès sécurisé</p>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Mot de passe..."
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 pl-10 pr-10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
+          
+          {error && (
+            <p className="text-red-400 text-sm text-center">{error}</p>
+          )}
+          
+          <button
+            type="submit"
+            className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-3 rounded-lg transition-colors"
+          >
+            Connexion
+          </button>
+        </form>
+        
+        <p className="text-gray-500 text-xs text-center mt-6">
+          Accès restreint - Propriétaire Only 🔒
+        </p>
+      </div>
+    </div>
+  )
 }
 
 // Project Card Component
@@ -42,17 +112,16 @@ function ProjectCard({ project, workspace, onMove }) {
           </button>
           {showMenu && (
             <div className="absolute right-0 top-6 bg-white dark:bg-gray-800 shadow-lg rounded border border-gray-200 dark:border-gray-700 py-1 z-10 min-w-[120px]">
-              <button onClick={() => onMove(project.id, 'todo')} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">À faire</button>
-              <button onClick={() => onMove(project.id, 'in_progress')} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">En cours</button>
-              <button onClick={() => onMove(project.id, 'review')} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">Review</button>
-              <button onClick={() => onMove(project.id, 'done')} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">Terminé</button>
-              <button onClick={() => onMove(project.id, 'blocked')} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600">Bloqué</button>
+              <button onClick={() => { onMove(project.id, 'todo'); setShowMenu(false); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">À faire</button>
+              <button onClick={() => { onMove(project.id, 'in_progress'); setShowMenu(false); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">En cours</button>
+              <button onClick={() => { onMove(project.id, 'review'); setShowMenu(false); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">Review</button>
+              <button onClick={() => { onMove(project.id, 'done'); setShowMenu(false); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">Terminé</button>
+              <button onClick={() => { onMove(project.id, 'blocked'); setShowMenu(false); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600">Bloqué</button>
             </div>
           )}
         </div>
       </div>
       
-      {/* Tags */}
       {project.tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
           {project.tags.map(tag => (
@@ -63,7 +132,6 @@ function ProjectCard({ project, workspace, onMove }) {
         </div>
       )}
       
-      {/* Progress bar */}
       <div className="mb-2">
         <div className="flex justify-between text-xs text-gray-500 mb-1">
           <span>Progression</span>
@@ -72,22 +140,15 @@ function ProjectCard({ project, workspace, onMove }) {
         <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
           <div 
             className="h-full rounded-full transition-all"
-            style={{ 
-              width: `${project.progress}%`,
-              backgroundColor: priority.color
-            }}
+            style={{ width: `${project.progress}%`, backgroundColor: priority.color }}
           />
         </div>
       </div>
       
-      {/* Priority badge */}
       <div className="flex items-center justify-between">
         <span 
           className="text-xs px-2 py-0.5 rounded font-medium"
-          style={{ 
-            backgroundColor: priority.color + '20',
-            color: priority.color
-          }}
+          style={{ backgroundColor: priority.color + '20', color: priority.color }}
         >
           {priority.label}
         </span>
@@ -196,10 +257,7 @@ function ListView() {
                 <td className="p-3">
                   <span 
                     className="px-2 py-0.5 rounded text-xs font-medium"
-                    style={{ 
-                      backgroundColor: priority.color + '20',
-                      color: priority.color
-                    }}
+                    style={{ backgroundColor: priority.color + '20', color: priority.color }}
                   >
                     {priority.label}
                   </span>
@@ -207,10 +265,7 @@ function ListView() {
                 <td className="p-3">
                   <div className="flex items-center gap-2">
                     <div className="w-16 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full">
-                      <div 
-                        className="h-full rounded-full"
-                        style={{ width: `${project.progress}%`, backgroundColor: priority.color }}
-                      />
+                      <div className="h-full rounded-full" style={{ width: `${project.progress}%`, backgroundColor: priority.color }} />
                     </div>
                     <span className="text-xs text-gray-500">{project.progress}%</span>
                   </div>
@@ -218,9 +273,7 @@ function ListView() {
                 <td className="p-3">
                   <div className="flex flex-wrap gap-1">
                     {project.tags.map(tag => (
-                      <span key={tag} className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">
-                        {tag}
-                      </span>
+                      <span key={tag} className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">{tag}</span>
                     ))}
                   </div>
                 </td>
@@ -242,10 +295,7 @@ function TimelineView() {
     ? projects.filter(p => p.workspace === activeWorkspace)
     : projects
   
-  // Sort by last activity
-  const sorted = [...filteredProjects].sort((a, b) => 
-    new Date(b.last_activity) - new Date(a.last_activity)
-  )
+  const sorted = [...filteredProjects].sort((a, b) => new Date(b.last_activity) - new Date(a.last_activity))
   
   return (
     <div className="space-y-3">
@@ -259,17 +309,10 @@ function TimelineView() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <span className="font-medium truncate">{project.name}</span>
-                <StatusIcon status={project.status} size={14} />
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full rounded-full transition-all"
-                    style={{ 
-                      width: `${project.progress}%`,
-                      backgroundColor: status.color
-                    }}
-                  />
+                  <div className="h-full rounded-full transition-all" style={{ width: `${project.progress}%`, backgroundColor: status.color }} />
                 </div>
                 <span className="text-xs text-gray-500 w-12">{project.progress}%</span>
               </div>
@@ -292,11 +335,8 @@ function StatusIcon({ status, size }) {
 }
 
 // Main Header
-function Header() {
-  const { 
-    workspaces, activeWorkspace, setActiveWorkspace, 
-    viewMode, setViewMode, getStats, addProject 
-  } = useStore()
+function Header({ onLogout }) {
+  const { workspaces, activeWorkspace, setActiveWorkspace, viewMode, setViewMode, getStats, addProject } = useStore()
   const [showNewProject, setShowNewProject] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   
@@ -316,7 +356,6 @@ function Header() {
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-bold">🎯 Mission Control</h1>
           
-          {/* Workspace Selector */}
           <div className="flex items-center gap-2">
             <select 
               value={activeWorkspace || ''}
@@ -331,44 +370,30 @@ function Header() {
           </div>
         </div>
         
-        {/* View Mode */}
-        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-          <button 
-            onClick={() => setViewMode('kanban')}
-            className={`p-2 rounded ${viewMode === 'kanban' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`}
-            title="Kanban"
-          >
-            <Layout size={18} />
-          </button>
-          <button 
-            onClick={() => setViewMode('list')}
-            className={`p-2 rounded ${viewMode === 'list' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`}
-            title="Liste"
-          >
-            <List size={18} />
-          </button>
-          <button 
-            onClick={() => setViewMode('timeline')}
-            className={`p-2 rounded ${viewMode === 'timeline' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`}
-            title="Timeline"
-          >
-            <Calendar size={18} />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            <button onClick={() => setViewMode('kanban')} className={`p-2 rounded ${viewMode === 'kanban' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`} title="Kanban">
+              <Layout size={18} />
+            </button>
+            <button onClick={() => setViewMode('list')} className={`p-2 rounded ${viewMode === 'list' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`} title="Liste">
+              <List size={18} />
+            </button>
+            <button onClick={() => setViewMode('timeline')} className={`p-2 rounded ${viewMode === 'timeline' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`} title="Timeline">
+              <Calendar size={18} />
+            </button>
+          </div>
+          
+          <button onClick={onLogout} className="p-2 text-gray-500 hover:text-red-500" title="Déconnexion">
+            <LogOut size={18} />
           </button>
         </div>
       </div>
       
-      {/* Stats Bar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-6 text-sm">
-          <span className="text-gray-500">
-            <strong className="text-gray-900 dark:text-gray-100">{stats.total}</strong> projets
-          </span>
-          <span className="text-orange-500">
-            <strong className="text-orange-600 dark:text-orange-400">{stats.byStatus.in_progress}</strong> en cours
-          </span>
-          <span className="text-green-500">
-            <strong className="text-green-600 dark:text-green-400">{stats.byStatus.done}</strong> terminés
-          </span>
+          <span className="text-gray-500"><strong className="text-gray-900 dark:text-gray-100">{stats.total}</strong> projets</span>
+          <span className="text-orange-500"><strong className="text-orange-600 dark:text-orange-400">{stats.byStatus.in_progress}</strong> en cours</span>
+          <span className="text-green-500"><strong className="text-green-600 dark:text-green-400">{stats.byStatus.done}</strong> terminés</span>
           {stats.byStatus.blocked > 0 && (
             <span className="text-red-500 flex items-center gap-1">
               <AlertCircle size={14} />
@@ -377,7 +402,6 @@ function Header() {
           )}
         </div>
         
-        {/* Add Project Button */}
         {activeWorkspace && (
           <div className="relative">
             {showNewProject ? (
@@ -391,24 +415,15 @@ function Header() {
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
                   autoFocus
                 />
-                <button 
-                  onClick={handleCreateProject}
-                  className="p-1.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600"
-                >
+                <button onClick={handleCreateProject} className="p-1.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
                   <Plus size={16} />
                 </button>
-                <button 
-                  onClick={() => setShowNewProject(false)}
-                  className="p-1.5 text-gray-500 hover:text-gray-700"
-                >
+                <button onClick={() => setShowNewProject(false)} className="p-1.5 text-gray-500 hover:text-gray-700">
                   <XCircle size={16} />
                 </button>
               </div>
             ) : (
-              <button 
-                onClick={() => setShowNewProject(true)}
-                className="flex items-center gap-1 px-3 py-1.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 text-sm"
-              >
+              <button onClick={() => setShowNewProject(true)} className="flex items-center gap-1 px-3 py-1.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 text-sm">
                 <Plus size={16} />
                 Nouveau projet
               </button>
@@ -422,11 +437,43 @@ function Header() {
 
 // Main App
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(null)
+  
+  useEffect(() => {
+    // Check for existing session
+    const auth = localStorage.getItem('mc_auth')
+    setIsAuthenticated(auth === 'true')
+  }, [])
+  
+  const handleLogin = (success) => {
+    setIsAuthenticated(success)
+  }
+  
+  const handleLogout = () => {
+    localStorage.removeItem('mc_auth')
+    setIsAuthenticated(false)
+  }
+  
+  // Show loading while checking auth
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white">Chargement...</div>
+      </div>
+    )
+  }
+  
+  // Show login if not authenticated
+  if (!isAuthenticated) {
+    return <LoginScreen onLogin={handleLogin} />
+  }
+  
+  // Show main app
   const viewMode = useStore(s => s.viewMode)
   
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      <Header />
+      <Header onLogout={handleLogout} />
       <main className="p-4">
         {viewMode === 'kanban' && <KanbanView />}
         {viewMode === 'list' && <ListView />}
