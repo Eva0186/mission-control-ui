@@ -8,7 +8,7 @@ import {
   Lock, Eye, EyeOff, LogOut, GripVertical, BarChart2, BookOpen
 } from 'lucide-react'
 
-const APP_PASSWORD = import.meta.env.VITE_AUTH_TOKEN || 'nerv2026'
+const APP_PASSWORD = import.meta.env.VITE_AUTH_TOKEN || 'EVE_TOLKIEN'
 
 const STATUS_CONFIG = {
   backlog: { label: 'Backlog', color: '#6b7280', icon: PauseCircle },
